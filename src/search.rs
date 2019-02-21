@@ -10,16 +10,15 @@ pub enum Result {
     MateIn(u8),
 }
 
-
 fn btm(s: State, dp: &Vec<Result>) -> Result {
     if dp[s.pack() as usize] != Result::NotCalculated {
         return dp[s.pack() as usize];
     }
-    
+    unimplemented!()
 }
 
 fn wtm(s: State, dp: &Vec<Result>) -> Result {
-
+    unimplemented!()
 }
 
 pub fn minimax() -> Vec<Result> {
@@ -68,8 +67,6 @@ pub fn minimax() -> Vec<Result> {
     }
 
     println!("{} checkmate positions found", q.len());
-
-
 
     dp
 }

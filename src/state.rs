@@ -243,8 +243,7 @@ impl State {
             for j in 0..8 {
                 if position[i * 8 + j] == "" {
                     counter += 1;
-                }
-                else {
+                } else {
                     if counter > 0 {
                         result += &counter.to_string();
                         counter = 0;
@@ -258,25 +257,20 @@ impl State {
             }
             result += "/";
         }
-        return result + " " + if self.white_to_move {
-            "w"
-        }
-        else {
-            "b"
-        } + " ---- - 0 1";
+        result + " " + if self.white_to_move { "w" } else { "b" } + " ---- - 0 1"
     }
 
     pub fn to_lichess(self) -> String {
-        return String::from("https://lichess.org/editor/") + &self.to_fen().replace(" ", "_");
+        String::from("https://lichess.org/editor/") + &self.to_fen().replace(" ", "_")
     }
 
     pub fn next_moves(self) -> Vec<State> {
         if self.white_to_move {
 
+        } else {
+
         }
-        else {
-            
-        }
+        unimplemented!()
     }
 }
 

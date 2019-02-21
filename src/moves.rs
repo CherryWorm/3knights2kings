@@ -18,7 +18,7 @@ impl PossibleMoves {
     }
 
     pub fn contains(&self, pos: Position) -> bool {
-        return (self.0 >> pos.to_u8()) & 1 == 1;
+        (self.0 >> pos.to_u8()) & 1 == 1
     }
 
     fn from_position(pos: Position) -> Self {
