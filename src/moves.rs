@@ -2,7 +2,7 @@ use crate::state::{Position, State};
 use std::ops;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-struct PossibleMoves(u64);
+pub struct PossibleMoves(u64);
 
 impl PossibleMoves {
     fn dif(&self, other: PossibleMoves) -> Self {
@@ -15,6 +15,10 @@ impl PossibleMoves {
         let a = self.0;
         let b = other.0;
         PossibleMoves(a | b)
+    }
+
+    pub fn contains(&self, pos: Position) -> bool {
+        return (self.0 >> pos.to_u8()) & 1 == 1;
     }
 
     fn from_position(pos: Position) -> Self {
@@ -82,10 +86,10 @@ lazy_static! {
 }
 
 impl Position {
-    fn king_moves(&self) -> PossibleMoves {
+    pub fn king_moves(&self) -> PossibleMoves {
         king_moves[self.to_u8() as usize]
     }
-    fn knight_moves(&self) -> PossibleMoves {
+    pub fn knight_moves(&self) -> PossibleMoves {
         knight_moves[self.to_u8() as usize]
     }
 }

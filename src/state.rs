@@ -229,6 +229,55 @@ impl State {
         }
         .encode()
     }
+
+    pub fn to_fen(self) -> String {
+        let mut result = String::from("");
+        let mut position = [""; 64];
+        position[self.white_king.to_u8() as usize] = "K";
+        position[self.black_king.to_u8() as usize] = "k";
+        for knight in &self.knights {
+            position[knight.to_u8() as usize] = "N";
+        }
+        let mut counter = 0;
+        for i in 0..8 {
+            for j in 0..8 {
+                if position[i * 8 + j] == "" {
+                    counter += 1;
+                }
+                else {
+                    if counter > 0 {
+                        result += &counter.to_string();
+                        counter = 0;
+                    }
+                    result += position[i * 8 + j];
+                }
+            }
+            if counter != 0 {
+                result += &counter.to_string();
+                counter = 0;
+            }
+            result += "/";
+        }
+        return result + " " + if self.white_to_move {
+            "w"
+        }
+        else {
+            "b"
+        } + " ---- - 0 1";
+    }
+
+    pub fn to_lichess(self) -> String {
+        return String::from("https://lichess.org/editor/") + &self.to_fen().replace(" ", "_");
+    }
+
+    pub fn next_moves(self) -> Vec<State> {
+        if self.white_to_move {
+
+        }
+        else {
+            
+        }
+    }
 }
 
 impl PartialEq for State {
