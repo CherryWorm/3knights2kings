@@ -47,18 +47,18 @@ impl SmallState {
         }
         assert!(self.target_field < 28);
         assert!(self.white_to_move < 2);
-        self.white_king as u64 + 16 * (self.black_king as u64 + 63 * (self.target_field as u64 + 28 * (self.white_to_move as u64 + 2 * knight_tables.0[to_knight_index(self.knights)] as u64)))
+        self.white_king as u64 + 16 * (self.black_king as u64 + 63 * (knight_tables.0[to_knight_index(self.knights)] as u64 + knight_tables.1.len() as u64 * (self.target_field as u64 + 28 * self.white_to_move as u64)))
     }
     pub fn decode(mut packed: PackedState) -> Self {
         let white_king = (packed % 16) as u8;
         packed /= 16;
         let black_king = (packed % 63) as u8;
         packed /= 63;
+        let knights = knight_tables.1[packed as usize % knight_tables.1.len()];
+        packed /= knight_tables.1.len() as u64;
         let target_field = (packed % 28) as u8;
         packed /= 28;
-        let white_to_move = (packed % 2) as u8;
-        packed /= 2;
-        let knights = knight_tables.1[packed as usize];
+        let white_to_move = packed as u8;
         SmallState {
             white_king,
             black_king,

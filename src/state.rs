@@ -1,5 +1,13 @@
 use crate::encoding::{PackedState, SmallState};
 use std::cmp::Ordering;
+use shakmaty::Position as Shackpos;
+use shakmaty::Board;
+use shakmaty::fen::Fen;
+use shakmaty::Color;
+use shakmaty::Square;
+use shakmaty::fen::ParseFenError;
+use std::error::Error;
+
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Position {
@@ -68,6 +76,11 @@ impl Position {
             x: (self.x as i16 + dx) as u8,
             y: (self.y as i16 + dy) as u8,
         }
+    }
+
+    pub fn from_square(square: Square) -> Self {
+        let (x, y) = square.coords();
+        Position {x: u8::from(x), y: u8::from(y)}
     }
 }
 
@@ -241,14 +254,14 @@ impl State {
         let mut counter = 0;
         for i in 0..8 {
             for j in 0..8 {
-                if position[i * 8 + j] == "" {
+                if position[(7 - i) * 8 + j] == "" {
                     counter += 1;
                 } else {
                     if counter > 0 {
                         result += &counter.to_string();
                         counter = 0;
                     }
-                    result += position[i * 8 + j];
+                    result += position[(7 - i) * 8 + j];
                 }
             }
             if counter != 0 {
@@ -260,17 +273,30 @@ impl State {
         result + " " + if self.white_to_move { "w" } else { "b" } + " ---- - 0 1"
     }
 
-    pub fn to_lichess(self) -> String {
-        String::from("https://lichess.org/editor/") + &self.to_fen().replace(" ", "_")
+    pub fn from_fen(s: &str, target: Position) -> Self {
+        let fen = s.parse::<Fen>().unwrap();
+
+        let black_king = Position::from_square(fen.board.king_of(Color::Black).unwrap());
+        let white_king = Position::from_square(fen.board.king_of(Color::White).unwrap());
+        let mut i = 0;
+        let mut knights = [Position::from_u8(0), Position::from_u8(0), Position::from_u8(0)];
+        for square in fen.board.knights().into_iter() {
+            if fen.board.color_at(square).unwrap() == Color::White {
+                knights[i] = Position::from_square(square);
+                i += 1;
+            }
+        };
+        State {
+            white_king,
+            black_king,
+            knights,
+            white_to_move: fen.turn == Color::White,
+            target_field: target
+        }
     }
 
-    pub fn next_moves(self) -> Vec<State> {
-        if self.white_to_move {
-
-        } else {
-
-        }
-        unimplemented!()
+    pub fn to_lichess(self) -> String {
+        String::from("https://lichess.org/editor/") + &self.to_fen().replace(" ", "_")
     }
 }
 
