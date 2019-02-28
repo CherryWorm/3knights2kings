@@ -51,12 +51,35 @@ impl Position {
     }
 
     pub fn from_u8_bottom_left(i: u8) -> Self {
-        assert!(i < 16);
-        Position { x: i & 0b11, y: (i >> 2) & 0b11 }
+        assert!(i < 10);
+        if i < 4 {
+            Position { x: 0, y: i }
+        }
+        else if i < 7 {
+            Position { x: 1, y: i - 3 }
+        }
+        else if i < 9 {
+            Position { x: 2, y: i - 5 }
+        }
+        else {
+            Position { x : 3, y: 3 }
+        }
     }
     pub fn to_u8_bottom_left(&self) -> u8 {
-        assert!(self.x < 4 && self.y < 4);
-        self.x | (self.y << 2)
+        assert!(self.x < 4 && self.y < 4 && self.x <= self.y);
+        if self.x == 0 {
+            self.y
+        }
+        else if self.x == 1 {
+            4 + self.y - 1
+        }
+        else if self.x == 2 {
+            7 + self.y - 2
+
+        }
+        else {
+            9
+        }
     }
 
     pub fn rotate_clockwise(&self) -> Self {
@@ -67,6 +90,10 @@ impl Position {
     }
     pub fn rotate_twice(&self) -> Self {
         Position { x: 7 - self.x, y: 7 - self.y }
+    }
+
+    pub fn mirror(&self) -> Self {
+        Position { x: self.y, y: self.x }
     }
 
     pub fn is_out_of_bounds(&self, dx: i16, dy: i16) -> bool {
@@ -96,16 +123,6 @@ impl PartialOrd for Position {
     fn partial_cmp(&self, other: &Position) -> Option<Ordering> {
         Some(self.cmp(other))
     }
-}
-
-fn sort<A, T>(mut array: A) -> A
-where
-    A: AsMut<[T]>,
-    T: Ord,
-{
-    let slice = array.as_mut();
-    slice.sort();
-    array
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -161,7 +178,8 @@ impl State {
     }
 
     pub fn normalize(&self) -> State {
-        let (white_king, knights, black_king, target_field) = if self.white_king.x >= 4 && self.white_king.y < 4 {
+        let (white_king, knights, black_king, target_field) =
+            if self.white_king.x >= 4 && self.white_king.y < 4 {
             // lower right
             (
                 self.white_king.rotate_clockwise(),
@@ -189,9 +207,17 @@ impl State {
             // lower left
             (self.white_king, [self.knights[0], self.knights[1], self.knights[2]], self.black_king, self.target_field)
         };
+        let (white_king, knights, black_king, target_field) =
+            if white_king.x > white_king.y {
+                (white_king.mirror(), [knights[0].mirror(), knights[1].mirror(), knights[2].mirror()], black_king.mirror(), target_field.mirror())
+            } else {
+                (white_king, knights, black_king, target_field)
+            };
         let min_knight = min(knights[0], min(knights[1], knights[2]));
         let max_knight = max(knights[0], max(knights[1], knights[2]));
-        let middle_knight = knights[0] + knights[1] + knights[2] - max_knight - min_knight;
+        let middle_knight = Position::from_u8(knights[0].to_u8() + knights[1].to_u8() + knights[2].to_u8() - max_knight.to_u8() - min_knight.to_u8());
+
+        assert!(min_knight < middle_knight && middle_knight < max_knight);
 
         State { white_king, black_king, knights: [min_knight, middle_knight, max_knight], target_field, ..*self }
     }
@@ -210,13 +236,13 @@ impl State {
         let mut knights_packed = [knights[0].to_u8(), knights[1].to_u8(), knights[2].to_u8()];
 
         for i in 0..3 {
-            if white_king.to_u8() <= knights_packed[i] {
+            if white_king.to_u8() < knights_packed[i] {
                 knights_packed[i] -= 1;
             }
-            if black_king <= knights_packed[i] {
+            if black_king < knights_packed[i] {
                 knights_packed[i] -= 1;
             }
-            knights_packed[i] -= i;
+            knights_packed[i] -= i as u8;
         }
 
         let white_to_move = if self.white_to_move { 1u8 } else { 0u8 };

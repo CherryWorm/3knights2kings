@@ -1,4 +1,3 @@
-use crate::search::Result;
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
@@ -6,32 +5,14 @@ use std::io::BufReader;
 use std::io::Read;
 
 pub struct Tablebase {
-    pub dp: Vec<Result>
-}
-
-impl Result {
-    fn to_byte(&self) -> u8 {
-        match self {
-            Result::NotCalculated => 0,
-            Result::Draw => 1,
-            Result::MateIn(i) => *i + 2
-        }
-    }
-
-    fn from_byte(b: u8) -> Self {
-        match b {
-            0 => Result::NotCalculated,
-            1 => Result::Draw,
-            i => Result::MateIn(i - 2)
-        }
-    }
+    pub dp: Vec<u8>
 }
 
 impl Tablebase {
     pub fn write_to_disk(&self, file: File) {
         let mut writer = BufWriter::new(&file);
         for r in &self.dp {
-            writer.write(&[r.to_byte()]);
+            writer.write(&[*r]);
         }
     }
 
@@ -39,7 +20,7 @@ impl Tablebase {
         let reader = BufReader::new(&file);
         let mut dp = Vec::new();
         for r in reader.bytes() {
-            dp.push(Result::from_byte(r.expect("wat")))
+            dp.push(r.expect("wat"))
         }
         Tablebase{dp}
     }
@@ -50,9 +31,9 @@ impl Tablebase {
         let mut not_calculated = 0;
         for s in &self.dp {
             match s {
-                Result::Draw => draw += 1,
-                Result::NotCalculated => not_calculated += 1,
-                Result::MateIn(_) => mate += 1
+                254 => draw += 1,
+                255 => not_calculated += 1,
+                _ => mate += 1
             }
         }
         let percent = 100.0 / self.dp.len() as f32;
