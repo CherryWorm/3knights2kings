@@ -7,6 +7,8 @@ use shakmaty::Color;
 use shakmaty::Square;
 use shakmaty::fen::ParseFenError;
 use std::error::Error;
+use std::cmp::min;
+use std::cmp::max;
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -187,10 +189,11 @@ impl State {
             // lower left
             (self.white_king, [self.knights[0], self.knights[1], self.knights[2]], self.black_king, self.target_field)
         };
+        let min_knight = min(knights[0], min(knights[1], knights[2]));
+        let max_knight = max(knights[0], max(knights[1], knights[2]));
+        let middle_knight = knights[0] + knights[1] + knights[2] - max_knight - min_knight;
 
-        let knights = sort(knights);
-
-        State { white_king, black_king, knights, target_field, ..*self }
+        State { white_king, black_king, knights: [min_knight, middle_knight, max_knight], target_field, ..*self }
     }
 
     pub fn pack(&self) -> PackedState {
@@ -202,36 +205,21 @@ impl State {
             target_field,
         } = self.normalize();
 
-        let mut prev: Vec<u8> = vec![white_king.to_u8(), black_king.to_u8()];
         let black_king = black_king.to_u8() - if white_king < black_king { 1 } else { 0 };
 
-        let mut knights_packed = [0u8; 3];
+        let mut knights_packed = [knights[0].to_u8(), knights[1].to_u8(), knights[2].to_u8()];
 
         for i in 0..3 {
-            knights_packed[i] = knights[i].to_u8();
-            prev.sort_unstable();
-            prev.reverse();
-            for j in &prev {
-                debug!("knights[{}] = {}; {}", i, knights[i].to_u8(), *j);
-                if *j <= knights[i].to_u8() {
-                    knights_packed[i] -= 1;
-                }
+            if white_king.to_u8() <= knights_packed[i] {
+                knights_packed[i] -= 1;
             }
-            prev.push(knights[i].to_u8());
+            if black_king <= knights_packed[i] {
+                knights_packed[i] -= 1;
+            }
+            knights_packed[i] -= i;
         }
 
         let white_to_move = if self.white_to_move { 1u8 } else { 0u8 };
-
-        debug!(
-            "{:?}",
-            SmallState {
-                white_king: white_king.to_u8_bottom_left(),
-                black_king,
-                knights: knights_packed,
-                target_field: target_field.to_u8_rim(),
-                white_to_move,
-            }
-        );
 
         SmallState {
             white_king: white_king.to_u8_bottom_left(),
