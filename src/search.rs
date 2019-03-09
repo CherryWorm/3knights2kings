@@ -26,6 +26,9 @@ pub fn prev_layer_white(dp: &Vec<AtomicU8>, s: State, layer: u8, sender: &Sender
         let packed = prev.pack() as usize;
         let value = dp[packed].compare_and_swap(NOT_CALCULATED, layer, Ordering::SeqCst);
         if value == NOT_CALCULATED {
+            if packed == 762463190 {
+                println!("Reached 762463190 from {} ({:?}, {})", s.to_lichess(), s.target_field, s.pack());
+            }
             sender.send(Message::Calculate(prev.normalize())).unwrap();
         }
     }
@@ -48,7 +51,7 @@ pub fn prev_layer_black(dp: &Vec<AtomicU8>, outdeg: &Vec<AtomicI8>, s: State, la
         }
 
         for pos in ((prev.white_knights() & prev.black_king.king_moves()) / prev.covered_by_white()).iter() {
-            if pos.to_u8() != 0 || prev.knights[1].to_u8() == 63 || prev.knights[2].to_u8() == 63 {
+            if pos.to_u8() != 0 || prev.knights[1].to_u8() == 63 || prev.knights[2].to_u8() == 63 || prev.target_field.to_u8() != 0 {
                 dp[prev_packed].store(DRAW, Ordering::Relaxed);
                 continue 'outer
             }
@@ -81,40 +84,43 @@ fn generate_checkmates(dp: &Vec<AtomicU8>, sender: &Sender<Message>) -> usize {
     let added = AtomicUsize::new(0);
     scope(|s| {
         let added = &added;
-        for target_field in 0..28 {
+        for white_king in 0..16 {
+            let white_king_pos = Position::from_u8_bottom_left(white_king);
             s.spawn(move |_| {
-                for white_king in 0..10 {
-                    for black_king in 0..64 {
-                        let white_king_pos = Position::from_u8_bottom_left(white_king);
-                        let black_king_pos = Position::from_u8(black_king);
-                        if white_king_pos.king_moves().contains(black_king_pos) || white_king_pos == black_king_pos {
+                for target in 0..28 {
+                    let target_pos = Position::from_u8_rim(target);
+                    let black_king_pos = target_pos;
+                    let black_king = black_king_pos.to_u8();
+                    if white_king_pos.king_moves().contains(black_king_pos) || white_king_pos == black_king_pos {
+                        continue;
+                    }
+                    for knight3 in 0..64 {
+                        if knight3 == white_king_pos.to_u8() || knight3 == black_king {
                             continue;
                         }
-                        for knight3 in 0..64 {
-                            if knight3 == white_king_pos.to_u8() || knight3 == black_king {
+                        for knight2 in 0..knight3 {
+                            if knight2 == white_king_pos.to_u8() || knight2 == black_king {
                                 continue;
                             }
-                            for knight2 in 0..knight3 {
-                                if knight2 == white_king_pos.to_u8() || knight2 == black_king {
+                            for knight1 in 0..knight2 {
+                                if knight1 == white_king_pos.to_u8() || knight1 == black_king {
                                     continue;
                                 }
-                                for knight1 in 0..knight2 {
-                                    if knight1 == white_king_pos.to_u8() || knight1 == black_king {
-                                        continue;
-                                    }
-                                    let state = State {
-                                        white_king: white_king_pos,
-                                        black_king: black_king_pos,
-                                        knights: [Position::from_u8(knight1), Position::from_u8(knight2), Position::from_u8(knight3)],
-                                        target_field: Position::from_u8_rim(target_field),
-                                        white_to_move: false,
-                                    };
-                                    if state.is_mate() {
-                                        let packed = state.pack();
-                                        dp[packed as usize].store(0, Ordering::Relaxed);
-                                        sender.send(Message::Calculate(state.normalize())).unwrap();
-                                        added.fetch_add(1, Ordering::SeqCst);
-                                    }
+                                let state = State {
+                                    white_king: white_king_pos,
+                                    black_king: black_king_pos,
+                                    knights: [Position::from_u8(knight1), Position::from_u8(knight2), Position::from_u8(knight3)],
+                                    target_field: target_pos,
+                                    white_to_move: false,
+                                };
+                                if state.pack() == 76359264 {
+                                    println!("Meme: {}", state.is_mate());
+                                }
+                                if state.is_mate() {
+                                    let packed = state.pack();
+                                    dp[packed as usize].store(0, Ordering::Relaxed);
+                                    sender.send(Message::Calculate(state.normalize())).unwrap();
+                                    added.fetch_add(1, Ordering::SeqCst);
                                 }
                             }
                         }
@@ -129,9 +135,10 @@ fn generate_checkmates(dp: &Vec<AtomicU8>, sender: &Sender<Message>) -> usize {
 }
 
 pub fn retrograde_search(pool: ThreadPool) -> Tablebase {
+    println!("Generating tablebase...");
     pool.install( || {
-        let dp = fill_vec(10 * 63 * 28 * 2 * 37820, || AtomicU8::new(NOT_CALCULATED));
-        let outdeg = fill_vec(10 * 63 * 28 * 2 * 37820, || AtomicI8::new(-1));
+        let dp = fill_vec(16 * 63 * 28 * 2 * 37820, || AtomicU8::new(NOT_CALCULATED));
+        let outdeg = fill_vec(16 * 63 * 28 * 2 * 37820, || AtomicI8::new(-1));
 
         let (sender, receiver) = channel::unbounded();
         let (buffer_sender, buffer_receiver) = channel::unbounded();

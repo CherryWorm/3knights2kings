@@ -51,49 +51,22 @@ impl Position {
     }
 
     pub fn from_u8_bottom_left(i: u8) -> Self {
-        assert!(i < 10);
-        if i < 4 {
-            Position { x: 0, y: i }
-        }
-        else if i < 7 {
-            Position { x: 1, y: i - 3 }
-        }
-        else if i < 9 {
-            Position { x: 2, y: i - 5 }
-        }
-        else {
-            Position { x : 3, y: 3 }
-        }
+        assert!(i < 16);
+        Position { x: i & 0b11, y: i >> 2 }
     }
     pub fn to_u8_bottom_left(&self) -> u8 {
-        assert!(self.x < 4 && self.y < 4 && self.x <= self.y);
-        if self.x == 0 {
-            self.y
-        }
-        else if self.x == 1 {
-            4 + self.y - 1
-        }
-        else if self.x == 2 {
-            7 + self.y - 2
-
-        }
-        else {
-            9
-        }
+        assert!(self.x < 4 && self.y < 4);
+        self.x + (self.y << 2)
     }
 
-    pub fn rotate_clockwise(&self) -> Self {
+    pub fn rotate_clockwise(self) -> Self {
         Position { x: self.y, y: 7 - self.x }
     }
-    pub fn rotate_counterclockwise(&self) -> Self {
+    pub fn rotate_counterclockwise(self) -> Self {
         Position { x: 7 - self.y, y: self.x }
     }
-    pub fn rotate_twice(&self) -> Self {
+    pub fn rotate_twice(self) -> Self {
         Position { x: 7 - self.x, y: 7 - self.y }
-    }
-
-    pub fn mirror(&self) -> Self {
-        Position { x: self.y, y: self.x }
     }
 
     pub fn is_out_of_bounds(&self, dx: i16, dy: i16) -> bool {
@@ -177,60 +150,55 @@ impl State {
         }
     }
 
-    pub fn normalize(&self) -> State {
-        let (white_king, knights, black_king, target_field) =
-            if self.white_king.x >= 4 && self.white_king.y < 4 {
-            // lower right
-            (
-                self.white_king.rotate_clockwise(),
-                [self.knights[0].rotate_clockwise(), self.knights[1].rotate_clockwise(), self.knights[2].rotate_clockwise()],
-                self.black_king.rotate_clockwise(),
-                self.target_field.rotate_clockwise(),
-            )
-        } else if self.white_king.x < 4 && self.white_king.y >= 4 {
-            // upper left
-            (
-                self.white_king.rotate_counterclockwise(),
-                [self.knights[0].rotate_counterclockwise(), self.knights[1].rotate_counterclockwise(), self.knights[2].rotate_counterclockwise()],
-                self.black_king.rotate_counterclockwise(),
-                self.target_field.rotate_counterclockwise(),
-            )
-        } else if self.white_king.x >= 4 && self.white_king.y >= 4 {
-            // upper right
-            (
-                self.white_king.rotate_twice(),
-                [self.knights[0].rotate_twice(), self.knights[1].rotate_twice(), self.knights[2].rotate_twice()],
-                self.black_king.rotate_twice(),
-                self.target_field.rotate_twice(),
-            )
-        } else {
-            // lower left
-            (self.white_king, [self.knights[0], self.knights[1], self.knights[2]], self.black_king, self.target_field)
-        };
-        let (white_king, knights, black_king, target_field) =
-            if white_king.x > white_king.y {
-                (white_king.mirror(), [knights[0].mirror(), knights[1].mirror(), knights[2].mirror()], black_king.mirror(), target_field.mirror())
-            } else {
-                (white_king, knights, black_king, target_field)
-            };
-        let min_knight = min(knights[0], min(knights[1], knights[2]));
-        let max_knight = max(knights[0], max(knights[1], knights[2]));
-        let middle_knight = Position::from_u8(knights[0].to_u8() + knights[1].to_u8() + knights[2].to_u8() - max_knight.to_u8() - min_knight.to_u8());
-
-        assert!(min_knight < middle_knight && middle_knight < max_knight);
-
-        State { white_king, black_king, knights: [min_knight, middle_knight, max_knight], target_field, ..*self }
+    pub fn apply_to_positions(&self, f: &Fn(Position) -> Position) -> Self {
+        State { white_king: f(self.white_king), knights: [f(self.knights[0]), f(self.knights[1]), f(self.knights[2])], black_king: f(self.black_king), target_field: f(self.target_field), ..*self }
     }
 
-    pub fn pack(&self) -> PackedState {
+    pub fn rotate_clockwise(&self) -> Self {
+        self.apply_to_positions(&Position::rotate_clockwise)
+    }
+
+    pub fn rotate_counterclockwise(&self) -> Self {
+        self.apply_to_positions(&Position::rotate_counterclockwise)
+    }
+
+    pub fn rotate_twice(&self) -> Self {
+        self.apply_to_positions(&Position::rotate_twice)
+    }
+
+    pub fn sort_knights(&self) -> Self {
+        let min_knight = min(self.knights[0], min(self.knights[1], self.knights[2]));
+        let max_knight = max(self.knights[0], max(self.knights[1], self.knights[2]));
+        let middle_knight = Position::from_u8(self.knights[0].to_u8() ^ self.knights[1].to_u8() ^ self.knights[2].to_u8() ^ max_knight.to_u8() ^ min_knight.to_u8());
+
+        assert!(min_knight < middle_knight && middle_knight < max_knight);
+        State { knights: [min_knight, middle_knight, max_knight], ..*self }
+    }
+
+    pub fn normalize(&self) -> State {
+        (if self.white_king.x >= 4 && self.white_king.y < 4 {
+            // lower right
+            self.rotate_clockwise()
+        } else if self.white_king.x < 4 && self.white_king.y >= 4 {
+            // upper left
+            self.rotate_counterclockwise()
+        } else if self.white_king.x >= 4 && self.white_king.y >= 4 {
+            // upper right
+            self.rotate_twice()
+        } else {
+            // lower left
+            *self
+        }).sort_knights()
+    }
+
+    fn pack_normalized(&self) -> PackedState {
         let State {
             white_king,
             black_king,
             knights,
             white_to_move,
             target_field,
-        } = self.normalize();
-
+        } = self;
         let black_king = black_king.to_u8() - if white_king < black_king { 1 } else { 0 };
 
         let mut knights_packed = [knights[0].to_u8(), knights[1].to_u8(), knights[2].to_u8()];
@@ -254,15 +222,20 @@ impl State {
             target_field: target_field.to_u8_rim(),
             white_to_move,
         }
-        .encode()
+            .encode()
+    }
+
+    pub fn pack(&self) -> PackedState {
+        self.normalize().pack_normalized()
     }
 
     pub fn to_fen(self) -> String {
+        let s = self.normalize();
         let mut result = String::from("");
         let mut position = [""; 64];
-        position[self.white_king.to_u8() as usize] = "K";
-        position[self.black_king.to_u8() as usize] = "k";
-        for knight in &self.knights {
+        position[s.white_king.to_u8() as usize] = "K";
+        position[s.black_king.to_u8() as usize] = "k";
+        for knight in &s.knights {
             position[knight.to_u8() as usize] = "N";
         }
         let mut counter = 0;
@@ -284,7 +257,7 @@ impl State {
             }
             result += "/";
         }
-        result + " " + if self.white_to_move { "w" } else { "b" } + " ---- - 0 1"
+        result + " " + if s.white_to_move { "w" } else { "b" } + " - - 0 1"
     }
 
     pub fn from_fen(s: &str, target: Position) -> Self {

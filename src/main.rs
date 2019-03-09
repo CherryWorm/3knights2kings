@@ -3,8 +3,6 @@
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
-extern crate env_logger;
-extern crate crossbeam;
 
 mod encoding;
 mod moves;
@@ -12,6 +10,7 @@ mod search;
 mod state;
 mod tests;
 mod tablebase;
+mod verification;
 
 use crate::search::*;
 use crate::state::*;
@@ -20,14 +19,26 @@ use std::fs::File;
 use rayon::ThreadPool;
 use rayon::ThreadPoolBuilder;
 use std::time::Instant;
+use crate::tablebase::Tablebase;
+use std::env;
+use indicatif::HumanDuration;
 
 fn main() {
     env_logger::init();
 
-    let now = Instant::now();
-    let tablebase = retrograde_search(ThreadPoolBuilder::new().num_threads(8).build().unwrap());
-    println!("Generated tablebase in {} seconds", now.elapsed().as_secs());
+    let args: Vec<String> = env::args().collect();
 
-    tablebase.write_to_disk(File::create("tb.raw").expect("Couldn't open tablebase file"));
-    tablebase.print_stats();
+    if args.len() != 1 && args[1] == "validate" {
+        let tablebase = Tablebase::read_from_disk(File::open("tb.raw").unwrap());
+        let now = Instant::now();
+        let verify = tablebase.verify(7);
+        println!("Verified tablebase in {}. Result: {}", HumanDuration(now.elapsed()), verify);
+    }
+    else {
+        let now = Instant::now();
+        let tablebase = Tablebase::generate(7);
+        println!("Generated tablebase in {}", HumanDuration(now.elapsed()));
+        tablebase.write_to_disk(File::create("tb.raw").expect("Couldn't open tablebase file"));
+        tablebase.print_stats();
+    }
 }

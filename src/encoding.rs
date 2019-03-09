@@ -40,18 +40,18 @@ lazy_static! {
 
 impl SmallState {
     pub fn encode(&self) -> PackedState {
-        assert!(self.white_king < 10);
+        assert!(self.white_king < 16);
         assert!(self.black_king < 63);
         for knight in &self.knights {
             assert!(*knight < 60);
         }
         assert!(self.target_field < 28);
         assert!(self.white_to_move < 2);
-        self.white_king as u64 + 10 * (self.black_king as u64 + 63 * (knight_tables.0[to_knight_index(self.knights)] as u64 + knight_tables.1.len() as u64 * (self.target_field as u64 + 28 * self.white_to_move as u64)))
+        self.white_king as u64 + 16 * (self.black_king as u64 + 63 * (knight_tables.0[to_knight_index(self.knights)] as u64 + knight_tables.1.len() as u64 * (self.target_field as u64 + 28 * self.white_to_move as u64)))
     }
     pub fn decode(mut packed: PackedState) -> Self {
-        let white_king = (packed % 10) as u8;
-        packed /= 10;
+        let white_king = (packed % 16) as u8;
+        packed /= 16;
         let black_king = (packed % 63) as u8;
         packed /= 63;
         let knights = knight_tables.1[packed as usize % knight_tables.1.len()];
