@@ -1,13 +1,9 @@
-use crate::moves;
 use crate::state::{Position, State};
-use std::collections::VecDeque;
 use crate::tablebase::Tablebase;
-use std::thread;
 use std::sync::atomic::AtomicI8;
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::AtomicUsize;
 use crossbeam::channel;
-use crossbeam::atomic::AtomicCell;
 use std::sync::atomic::Ordering;
 use crossbeam::channel::Sender;
 use rayon::ThreadPool;
@@ -18,8 +14,8 @@ pub enum Message {
     Calculate(State)
 }
 
-pub const NOT_CALCULATED: u8 = 255;
-pub const DRAW: u8 = 254;
+pub const NOT_CALCULATED: u8 = 254;
+pub const DRAW: u8 = 255;
 
 pub fn prev_layer_white(dp: &Vec<AtomicU8>, s: State, layer: u8, sender: &Sender<Message>) -> () {
     for prev in s.previous_states() {

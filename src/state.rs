@@ -1,12 +1,8 @@
 use crate::encoding::{PackedState, SmallState};
 use std::cmp::Ordering;
-use shakmaty::Position as Shackpos;
-use shakmaty::Board;
 use shakmaty::fen::Fen;
 use shakmaty::Color;
 use shakmaty::Square;
-use shakmaty::fen::ParseFenError;
-use std::error::Error;
 use std::cmp::min;
 use std::cmp::max;
 
@@ -38,7 +34,7 @@ impl Position {
         }
     }
     pub fn to_u8_rim(self) -> u8 {
-        assert!(self.x == 0 || self.y == 0 || self.x == 7 || self.y == 7);
+        assert!(self.is_on_rim());
         if self.y == 0 {
             self.x
         } else if self.y == 7 {
@@ -48,6 +44,10 @@ impl Position {
         } else {
             self.y + 21
         }
+    }
+
+    pub fn is_on_rim(self) -> bool {
+        self.x == 0 || self.y == 0 || self.x == 7 || self.y == 7
     }
 
     pub fn from_u8_bottom_left(i: u8) -> Self {
@@ -84,6 +84,25 @@ impl Position {
         let (x, y) = square.coords();
         Position {x: u8::from(x), y: u8::from(y)}
     }
+
+    pub fn from_string(s: String) -> Result<Self, String> {
+        if s.len() != 2 {
+            Err(format!("{} is not a valid square (has to have length 2)!", s))
+        }
+        else {
+            let file = s.chars().nth(0).unwrap().to_ascii_lowercase();
+            let rank = s.chars().nth(1).unwrap().to_ascii_lowercase();
+            if file < 'a' || file > 'h' {
+                Err(format!("{} is not a valid square (file has to be between 'a' and 'h')!", s))
+            }
+            else if rank < '1' || rank > '8' {
+                Err(format!("{} is not a valid square (rank has to be between 1 and 8)!", s))
+            }
+            else {
+                Ok(Position { x: file as u8 - 'a' as u8, y: rank as u8 - '1' as u8 })
+            }
+        }
+    }
 }
 
 impl Ord for Position {
@@ -117,8 +136,6 @@ impl State {
             white_to_move: white_to_move_packed,
         } = SmallState::decode(packed);
 
-        debug!("{:?}", SmallState::decode(packed));
-
         let white_king = Position::from_u8_bottom_left(white_king_packed);
         let black_king = black_king_packed + if white_king.to_u8() <= black_king_packed { 1 } else { 0 };
         let mut knights = [0u8; 3];
@@ -128,7 +145,6 @@ impl State {
             knights[i] = knights_packed[i];
             prev.sort_unstable();
             for j in &prev {
-                debug!("knights[{}] = {}; {}", i, knights[i], *j);
                 if *j <= knights[i] {
                     knights[i] += 1;
                 }
@@ -260,25 +276,45 @@ impl State {
         result + " " + if s.white_to_move { "w" } else { "b" } + " - - 0 1"
     }
 
-    pub fn from_fen(s: &str, target: Position) -> Self {
+    pub fn from_fen(s: &str, target: Position) -> Result<Self, String> {
         let fen = s.parse::<Fen>().unwrap();
 
-        let black_king = Position::from_square(fen.board.king_of(Color::Black).unwrap());
-        let white_king = Position::from_square(fen.board.king_of(Color::White).unwrap());
-        let mut i = 0;
-        let mut knights = [Position::from_u8(0), Position::from_u8(0), Position::from_u8(0)];
-        for square in fen.board.knights().into_iter() {
-            if fen.board.color_at(square).unwrap() == Color::White {
-                knights[i] = Position::from_square(square);
-                i += 1;
-            }
-        };
-        State {
-            white_king,
-            black_king,
-            knights,
-            white_to_move: fen.turn == Color::White,
-            target_field: target
+        let black_king_opt = fen.board.king_of(Color::Black);
+        let white_king_opt = fen.board.king_of(Color::White);
+
+        if let None = black_king_opt {
+            Err(String::from("No black king found!"))
+        }
+        else if let None = white_king_opt {
+            Err(String::from("No white king found!"))
+        }
+        else if (fen.board.white() & fen.board.knights()).count() != 3 {
+            Err(String::from("Wrong amount of white knighs!"))
+        }
+        else if fen.board.white().count() != 4 {
+            Err(String::from("Wrong amount of white pieces!"))
+        }
+        else if fen.board.black().count() != 1 {
+            Err(String::from("Wrong amount of black pieces!"))
+        }
+        else {
+            let black_king = Position::from_square(black_king_opt.unwrap());
+            let white_king = Position::from_square(white_king_opt.unwrap());
+            let mut i = 0;
+            let mut knights = [Position::from_u8(0), Position::from_u8(0), Position::from_u8(0)];
+            for square in fen.board.knights().into_iter() {
+                if fen.board.color_at(square).unwrap() == Color::White {
+                    knights[i] = Position::from_square(square);
+                    i += 1;
+                }
+            };
+            Ok(State {
+                white_king,
+                black_king,
+                knights,
+                white_to_move: fen.turn == Color::White,
+                target_field: target
+            })
         }
     }
 

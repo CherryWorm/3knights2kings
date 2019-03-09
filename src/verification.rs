@@ -4,7 +4,6 @@ use crate::state::State;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use std::str::FromStr;
 use chess::Board;
 use crate::search::DRAW;
 use crate::search::NOT_CALCULATED;
@@ -18,10 +17,10 @@ use chess::MoveGen;
 use indicatif::ProgressBar;
 
 impl State {
-    fn to_board(&self) -> Board {
+    pub fn to_board(&self) -> Board {
         Board::from_fen(self.to_fen()).expect(self.to_lichess().as_str())
     }
-    fn from_board(board: Board, target_field: Position) -> Self {
+    pub fn from_board(board: Board, target_field: Position) -> Self {
         let mut knights = [Position::from_u8(0), Position::from_u8(0), Position::from_u8(0)];
         let mut i = 0;
         for square in board.pieces(Piece::Knight) {

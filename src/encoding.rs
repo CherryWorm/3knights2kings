@@ -19,7 +19,7 @@ pub fn to_knight_index(knights: [u8; 3]) -> usize {
 }
 
 lazy_static! {
-    pub static ref knight_tables: (Vec<u32>, Vec<[u8; 3]>) = {
+    pub static ref KNIGHT_TABLES: (Vec<u32>, Vec<[u8; 3]>) = {
         let mut table1 = Vec::new();
         table1.resize(60 * 60 * 60, 0);
         let mut table2 = Vec::new();
@@ -47,15 +47,15 @@ impl SmallState {
         }
         assert!(self.target_field < 28);
         assert!(self.white_to_move < 2);
-        self.white_king as u64 + 16 * (self.black_king as u64 + 63 * (knight_tables.0[to_knight_index(self.knights)] as u64 + knight_tables.1.len() as u64 * (self.target_field as u64 + 28 * self.white_to_move as u64)))
+        self.white_king as u64 + 16 * (self.black_king as u64 + 63 * (KNIGHT_TABLES.0[to_knight_index(self.knights)] as u64 + KNIGHT_TABLES.1.len() as u64 * (self.target_field as u64 + 28 * self.white_to_move as u64)))
     }
     pub fn decode(mut packed: PackedState) -> Self {
         let white_king = (packed % 16) as u8;
         packed /= 16;
         let black_king = (packed % 63) as u8;
         packed /= 63;
-        let knights = knight_tables.1[packed as usize % knight_tables.1.len()];
-        packed /= knight_tables.1.len() as u64;
+        let knights = KNIGHT_TABLES.1[packed as usize % KNIGHT_TABLES.1.len()];
+        packed /= KNIGHT_TABLES.1.len() as u64;
         let target_field = (packed % 28) as u8;
         packed /= 28;
         let white_to_move = packed as u8;

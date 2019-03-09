@@ -2,43 +2,125 @@
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
-extern crate log;
+extern crate text_io;
 
 mod encoding;
 mod moves;
 mod search;
 mod state;
-mod tests;
 mod tablebase;
 mod verification;
 
-use crate::search::*;
 use crate::state::*;
-use log::*;
 use std::fs::File;
-use rayon::ThreadPool;
-use rayon::ThreadPoolBuilder;
 use std::time::Instant;
 use crate::tablebase::Tablebase;
-use std::env;
-use indicatif::HumanDuration;
+use clap::{Arg, App, SubCommand};
+use crate::tablebase::Value::MateIn;
+use std::path::Path;
 
-fn main() {
-    env_logger::init();
 
-    let args: Vec<String> = env::args().collect();
+fn gen(threads: usize, file: File) {
+    let start = Instant::now();
+    let tb = Tablebase::generate(threads);
+    println!("Tablebase generated in {} seconds", start.elapsed().as_secs());
+    tb.write_to_disk(file);
+}
 
-    if args.len() != 1 && args[1] == "validate" {
-        let tablebase = Tablebase::read_from_disk(File::open("tb.raw").unwrap());
-        let now = Instant::now();
-        let verify = tablebase.verify(7);
-        println!("Verified tablebase in {}. Result: {}", HumanDuration(now.elapsed()), verify);
+fn validate(threads: usize, file: File) {
+    let tb = Tablebase::read_from_disk(file).unwrap();
+    let start = Instant::now();
+    if tb.verify(threads) {
+        println!("The tablebase is consistent!");
     }
     else {
-        let now = Instant::now();
-        let tablebase = Tablebase::generate(7);
-        println!("Generated tablebase in {}", HumanDuration(now.elapsed()));
-        tablebase.write_to_disk(File::create("tb.raw").expect("Couldn't open tablebase file"));
-        tablebase.print_stats();
+        println!("The tablebase is not consistent!");
     }
+    println!("Tablebase verified in {} seconds", start.elapsed().as_secs());
+}
+
+fn eval(file: File) {
+    let mut tb = Tablebase::read_from_disk(file).unwrap();
+    tb.normalize();
+    loop {
+        let fen: String = read!("{}\n");
+        let target = read!("{}\n");
+        let s = State::from_fen(fen.as_str(), Position::from_string(target).unwrap()).unwrap();
+        let eval = tb.eval(&s);
+        if let MateIn(n) = eval.value {
+            println!("White has mate in {} half moves. Best moves:", n);
+            let mut first = true;
+            for m in &eval.best_moves {
+                if first {
+                    first = false
+                }
+                else {
+                    print!(", ")
+                }
+                print!("{}{}", m.get_source().to_string(), m.get_dest().to_string())
+            }
+        }
+        else {
+            println!("The position is an objective draw. Best moves:")
+        }
+    }
+}
+
+
+
+fn main() {
+
+    let matches = App::new("3 Knights 2 Kings")
+        .subcommand(SubCommand::with_name("gen")
+            .about("generates the tablebase")
+            .arg(Arg::with_name("output")
+                .help("The output file")
+                .required(true)
+                .index(1))
+            .arg(Arg::with_name("threads")
+                .short("t")
+                .long("threads")
+                .takes_value(true)
+                .value_name("n")
+                .required(false)
+                .default_value("7")
+                .help("The amount of threads to use")))
+        .subcommand(SubCommand::with_name("validate")
+            .about("validates the tablebase (this takes a long time)")
+            .arg(Arg::with_name("input")
+                .help("The tablebase file")
+                .required(true)
+                .index(1))
+            .arg(Arg::with_name("threads")
+                .short("t")
+                .long("threads")
+                .takes_value(true)
+                .value_name("n")
+                .required(false)
+                .default_value("7")
+                .help("The amount of threads to use")))
+        .subcommand(SubCommand::with_name("eval")
+            .about("reads FENs and target squares (each on their own line) from stdin and evaluates the positions")
+            .arg(Arg::with_name("input")
+                .help("The tablebase file")
+                .required(true)
+                .index(1)))
+        .get_matches();
+
+    if let Some(matches) = matches.subcommand_matches("gen") {
+        let file = File::create(Path::new(matches.value_of("output").unwrap())).unwrap();
+        let threads = matches.value_of("threads").unwrap().parse().unwrap();
+        gen(threads, file);
+    }
+    else if let Some(matches) = matches.subcommand_matches("validate") {
+        let file = File::open(Path::new(matches.value_of("input").unwrap())).unwrap();
+        let threads = matches.value_of("threads").unwrap().parse().unwrap();
+        validate(threads, file);
+    }
+    else if let Some(matches) = matches.subcommand_matches("eval") {
+        let file = File::open(Path::new(matches.value_of("input").unwrap())).unwrap();
+        eval(file);
+    }
+
+
 }
