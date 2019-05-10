@@ -102,14 +102,16 @@ impl Tablebase {
         }
         else {
             let dp_s = self.dp[s.pack() as usize];
+            println!("{}", dp_s);
             let best_moves = if s.white_to_move {
                 MoveGen::new_legal(&board)
-                    .filter(|m| dp_s == DRAW || self.dp[State::from_board(board.make_move_new(*m), s.target_field).pack() as usize] == dp_s - 1)
+                    .filter(|m| { let next = self.dp[State::from_board(board.make_move_new(*m), s.target_field).pack() as usize]; println!("{:?}: {}", m, next); dp_s == DRAW || next == dp_s - 1 })
                     .collect()
             }
             else {
+                println!("{}", dp_s);
                 MoveGen::new_legal(&board)
-                    .filter(|m| { let next = self.dp[State::from_board(board.make_move_new(*m), s.target_field).pack() as usize]; (dp_s == DRAW && next == DRAW) || (dp_s != DRAW && dp_s - 1 == next) })
+                    .filter(|m| { let next = self.dp[State::from_board(board.make_move_new(*m), s.target_field).pack() as usize]; println!("{:?}: {}", m, next); (dp_s == DRAW && next == DRAW) || (dp_s != DRAW && dp_s - 1 == next) })
                     .collect()
             };
             let value = if dp_s == DRAW { Value::Draw } else { Value::MateIn(dp_s) };

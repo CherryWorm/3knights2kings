@@ -7,14 +7,16 @@
         <link rel="stylesheet" href="theme.css"></link>
     </head>
     <body>
-        <div class="blue merida">
-            <div id="chessboard" class="cg-board-wrap"></div>
-            <div class="ui statistic" style="display: block; margin-left: auto; margin-right: auto; margin-top: 40px;">
-                <div class="label">
-                    Mate in
-                </div>
-                <div class="value" id="mate">
-                    -
+        <div class="ui inverted segment">
+            <div class="blue merida">
+                <div id="chessboard" class="cg-board-wrap" style="width: 600px; height: 600px"></div>
+                <div class="ui inverted statistic" style="display: block; margin-left: auto; margin-right: auto; margin-top: 40px;">
+                    <div class="label">
+                        Mate in
+                    </div>
+                    <div class="value" id="mate">
+                        -
+                    </div>
                 </div>
             </div>
         </div>

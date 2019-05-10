@@ -11,6 +11,9 @@ var ground = Chessground(document.getElementById('chessboard'), {
             duration: 200
         }
     },
+    drawable: {
+        enabled: false
+    },
     events: {
         change: update
     }
@@ -31,7 +34,7 @@ target.val('g1');
 update();
 
 
-move_checkbox.change(function() {
+move_checkbox.change(function () {
     if (this.checked) {
         ground.set({
             turnColor: 'white'
@@ -45,7 +48,7 @@ move_checkbox.change(function() {
 });
 
 
-fen.keyup(function(event) {
+fen.keyup(function (event) {
     if (event.keyCode === 13) {
         ground.set({
             fen: fen.val()
@@ -55,19 +58,16 @@ fen.keyup(function(event) {
 });
 
 target.keyup(function (event) {
-   if(event.keyCode === 13) {
-       if (target.val().length === 2 && target.val()[0] >= 'a' && target.val()[0] <= 'h' && target.val()[1] >= '1' && target.val()[1] <= '8')
-           set_target_field(target.val());
-   }
+    if (event.keyCode === 13) {
+        if (target.val().length === 2 && target.val()[0] >= 'a' && target.val()[0] <= 'h' && target.val()[1] >= '1' && target.val()[1] <= '8')
+            set_target_field(target.val());
+    }
 });
 
 
 
 function set_target_field(key) {
     target_field = key;
-    ground.set({
-        check: target_field
-    });
     update();
 }
 
@@ -75,6 +75,7 @@ function update() {
     console.log(ground.state);
     move_checkbox.prop('checked', ground.state.turnColor === 'white');
     fen.val(ground.getFen());
+    ground.setShapes([{ orig: target_field, brush: 'red' }]);
     evaluate();
 }
 
@@ -83,16 +84,26 @@ function evaluate() {
         type: "POST",
         url: "/eval",
         contentType: "application/json",
-        data: JSON.stringify({fen: ground.getFen() + ' ' + ground.state.turnColor[0] + ' - -', target: target_field}),
-        success: function(response) {
+        data: JSON.stringify({ fen: ground.getFen() + ' ' + ground.state.turnColor[0] + ' - -', target: target_field }),
+        success: function (response) {
             if (response.mate_in < 0) {
                 mate.text('DRAW')
             }
             else {
                 mate.text(Math.trunc(response.mate_in / 2) + ' (' + response.mate_in + ')')
             }
+            console.log(response);
+            var shapes = response.best_moves.map(function (x) {
+                return {
+                    orig: x[0],
+                    dest: x[1],
+                    brush: "green"
+                };
+            });
+            shapes.push({ orig: target_field, brush: 'red' });
+            ground.setShapes(shapes );
         },
-        error: function(xhr, ajaxOptions, thrownError) {
+        error: function (xhr, ajaxOptions, thrownError) {
             mate.text('-')
         }
     });
