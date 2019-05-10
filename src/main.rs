@@ -1,8 +1,11 @@
 #![feature(integer_atomics)]
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate text_io;
+#![feature(proc_macro_hygiene, decl_macro)]
+
+#[macro_use] extern crate lazy_static;
+#[macro_use] extern crate text_io;
+#[macro_use] extern crate rocket;
+#[macro_use] extern crate rocket_contrib;
+#[macro_use] extern crate serde_derive;
 
 mod encoding;
 mod moves;
@@ -10,6 +13,7 @@ mod search;
 mod state;
 mod tablebase;
 mod verification;
+mod webserver;
 
 use crate::state::*;
 use std::fs::File;
@@ -18,6 +22,7 @@ use crate::tablebase::Tablebase;
 use clap::{Arg, App, SubCommand};
 use crate::tablebase::Value::MateIn;
 use std::path::Path;
+use crate::webserver::start_server;
 
 
 fn gen(threads: usize, file: File) {
@@ -45,7 +50,7 @@ fn eval(file: File) {
     loop {
         let fen: String = read!("{}\n");
         let target = read!("{}\n");
-        let s = State::from_fen(fen.as_str(), Position::from_string(target).unwrap()).unwrap();
+        let s = State::from_fen(&fen, Position::from_string(&target).unwrap()).unwrap();
         let eval = tb.eval(&s);
         if let MateIn(n) = eval.value {
             println!("White has mate in {} half moves. Best moves:", n);
@@ -64,6 +69,12 @@ fn eval(file: File) {
             println!("The position is an objective draw. Best moves:")
         }
     }
+}
+
+fn server(file: File) {
+    let mut tb = Tablebase::read_from_disk(file).unwrap();
+    tb.normalize();
+    start_server(tb);
 }
 
 
@@ -105,6 +116,12 @@ fn main() {
                 .help("The tablebase file")
                 .required(true)
                 .index(1)))
+        .subcommand(SubCommand::with_name("server")
+            .about("Launches a webserver with a simple ui")
+            .arg(Arg::with_name("input")
+                .help("The tablebase file")
+                .required(true)
+                .index(1)))
         .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("gen") {
@@ -120,6 +137,10 @@ fn main() {
     else if let Some(matches) = matches.subcommand_matches("eval") {
         let file = File::open(Path::new(matches.value_of("input").unwrap())).unwrap();
         eval(file);
+    }
+    else if let Some(matches) = matches.subcommand_matches("server") {
+        let file = File::open(Path::new(matches.value_of("input").unwrap())).unwrap();
+        server(file);
     }
 
 

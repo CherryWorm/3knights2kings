@@ -85,7 +85,7 @@ impl Position {
         Position {x: u8::from(x), y: u8::from(y)}
     }
 
-    pub fn from_string(s: String) -> Result<Self, String> {
+    pub fn from_string(s: &String) -> Result<Self, String> {
         if s.len() != 2 {
             Err(format!("{} is not a valid square (has to have length 2)!", s))
         }
@@ -276,7 +276,7 @@ impl State {
         result + " " + if s.white_to_move { "w" } else { "b" } + " - - 0 1"
     }
 
-    pub fn from_fen(s: &str, target: Position) -> Result<Self, String> {
+    pub fn from_fen(s: &String, target: Position) -> Result<Self, String> {
         let fen = s.parse::<Fen>().unwrap();
 
         let black_king_opt = fen.board.king_of(Color::Black);
