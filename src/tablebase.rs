@@ -7,8 +7,8 @@ use crate::search::{retrograde_search, DRAW, NOT_CALCULATED};
 use rayon::ThreadPoolBuilder;
 use crate::verification::verify;
 use indicatif::ProgressBar;
-use crate::state::State;
-use chess::{ChessMove, MoveGen};
+use crate::state::{State, Position};
+use chess::{ChessMove, MoveGen, Board};
 
 pub struct Tablebase {
     pub dp: Vec<u8>
@@ -95,10 +95,10 @@ impl Tablebase {
         verify(&self.dp, ThreadPoolBuilder::new().num_threads(threads).build().unwrap())
     }
 
-    pub fn eval(&self, s: &State) -> Evaluation {
-        let board = s.to_board();
+    pub fn eval(&self, board: Board, target: Position) -> Evaluation {
+        let s = State::from_board(board, target);
         if !s.target_field.is_on_rim() {
-            Evaluation {best_moves: MoveGen::new_legal(&board).collect(), value: Value::Draw}
+            Evaluation {best_moves: vec![], value: Value::Draw}
         }
         else {
             let dp_s = self.dp[s.pack() as usize];

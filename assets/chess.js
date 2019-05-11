@@ -83,7 +83,7 @@ function evaluate() {
         type: "POST",
         url: "/eval",
         contentType: "application/json",
-        data: JSON.stringify({ fen: ground.getFen() + ' ' + ground.state.turnColor[0] + ' - -', target: target_field }),
+        data: JSON.stringify({ fen: ground.getFen() + ' ' + ground.state.turnColor[0] + ' ---- - 0 1', target: target_field }),
         success: function (response) {
             if (response.mate_in < 0) {
                 mate.text('DRAW')

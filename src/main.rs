@@ -23,6 +23,7 @@ use clap::{Arg, App, SubCommand};
 use crate::tablebase::Value::MateIn;
 use std::path::Path;
 use crate::webserver::start_server;
+use chess::Board;
 
 
 fn gen(threads: usize, file: File) {
@@ -50,10 +51,11 @@ fn eval(file: File) {
     loop {
         let fen: String = read!("{}\n");
         let target = read!("{}\n");
-        let s = State::from_fen(&fen, Position::from_string(&target).unwrap()).unwrap();
-        let eval = tb.eval(&s);
+        let os = Board::from_fen(fen);
+        let s = os.unwrap();
+        let target = Position::from_string(&target).unwrap();
+        let eval = tb.eval(s, target);
         if let MateIn(n) = eval.value {
-            println!("White has mate in {} half moves. Best moves:", n);
             let mut first = true;
             for m in &eval.best_moves {
                 if first {
@@ -64,6 +66,7 @@ fn eval(file: File) {
                 }
                 print!("{}{}", m.get_source().to_string(), m.get_dest().to_string())
             }
+            println!("");
         }
         else {
             println!("The position is an objective draw. Best moves:")
